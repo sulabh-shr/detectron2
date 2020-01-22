@@ -69,12 +69,6 @@ predictor = DefaultPredictor(cfg)
 # 	v.get_image()[:,:,::-1])
 
 # -------------------------- FOLDER CREATION ----------------------------------
-DATASET_ROOT = '/mnt/sda2/workspace/DATASETS/ActiveVision'
-SCENES = ['Home_001_1', 'Home_001_2', 'Home_002_1', 'Home_003_1', 
-			'Home_003_2', 'Home_004_1', 'Home_004_2', 'Home_005_1',
-            'Home_005_2', 'Home_006_1', 'Home_007_1', 'Home_008_1',
-            'Home_010_1', 'Home_011_1', 'Home_013_1', 'Home_014_1',
-            'Home_014_2', 'Home_015_1', 'Home_016_1', 'Office_001_1']
 OUTPUT_ROOT = '/mnt/sda2/workspace/self_supervised_outputs'
 RESULT_TYPE = 'predictor'
 FOLDER_COUNT = 1
@@ -83,9 +77,22 @@ folders_in_output_root = sorted([int(i[len(MODEL)+1:]) for i in os.listdir(OUTPU
 if len(folders_in_output_root) > 0:
 	FOLDER_COUNT = folders_in_output_root[-1] + 1
 
-MODEL_OUTPUT_PATH = os.path.join(OUTPUT_ROOT, f'{MODEL}_{FOLDER_COUNT}', RESULT_TYPE)
-os.makedirs(MODEL_OUTPUT_PATH)
+MODEL_OUTPUT_PATH = os.path.join(OUTPUT_ROOT, f'{MODEL}_{FOLDER_COUNT}')
+PREDICTOR_OUTPUT_PATH = os.path.join(MODEL_OUTPUT_PATH, RESULT_TYPE)
+os.makedirs(PREDICTOR_OUTPUT_PATH)
+
+with open(os.path.join(MODEL_OUTPUT_PATH, 'cfg.txt'), 'w') as f:
+	f.write(cfg.dump())
+
+print(f'Model Output path = {MODEL_OUTPUT_PATH}')
+
 # -------------------------- FOLDER CREATION ----------------------------------
+DATASET_ROOT = '/mnt/sda2/workspace/DATASETS/ActiveVision'
+SCENES = ['Home_001_1', 'Home_001_2', 'Home_002_1', 'Home_003_1', 
+			'Home_003_2', 'Home_004_1', 'Home_004_2', 'Home_005_1',
+            'Home_005_2', 'Home_006_1', 'Home_007_1', 'Home_008_1',
+            'Home_010_1', 'Home_011_1', 'Home_013_1', 'Home_014_1',
+            'Home_014_2', 'Home_015_1', 'Home_016_1', 'Office_001_1']
 
 # -------------------------- INFERENCE ----------------------------------
 
@@ -100,10 +107,10 @@ for scene in SCENES:
 
 		img = cv2.imread(image_path)
 		outputs = predictor(img)
-		print(os.path.join(MODEL_OUTPUT_PATH, output_file))
+		print(os.path.join(PREDICTOR_OUTPUT_PATH, output_file))
 
 		print(image_file, len(outputs["instances"].pred_classes))
-		torch.save(outputs, os.path.join(MODEL_OUTPUT_PATH, output_file))
+		torch.save(outputs, os.path.join(PREDICTOR_OUTPUT_PATH, output_file))
 		del(outputs)
 		c += 1
 		if c == 15:

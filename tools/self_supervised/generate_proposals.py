@@ -20,25 +20,28 @@ import os
 import glob
 import torch
 from tqdm import tqdm
-# ---------------------
+import datetime
+
+import argparse
 
 
-# im = cv2.imread("input2.jpg")
+parser = argparse.ArgumentParser()
+parser.add_argument("--model", type=str, required=True, help="Model to use to generate the proposals. Must use full path of model corresponding to detectron2 repo.")
+parser.add_argument("--output_dir", type=str, required=True, help="Root directory to store the outputs.")
+parser.add_argument("--dataset_root", type=str, required=True, help="Root directory of the dataset")
+args = parser.parse_args()
 
-# Rescale image
-# width = int(im.shape[1] * scale_percent / 100)
-# height = int(im.shape[0] * scale_percent / 100)
-# dim = (width, height)
-# im = cv2.resize(im, dim)
+# ------------------------ MODEL SELECTION AND CONFIGURATION ----------------------------------
 
-# -------------------------- MODEL SELECTION ----------------------------------
 
-MODEL_PATH = "COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"
+
+# MODEL_PATH = "COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"
+MODEL_PATH = args.model
 MODEL = MODEL_PATH.split('/')[1].split('.')[0]
 
 cfg = get_cfg()
 
-cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
+cfg.merge_from_file(model_zoo.get_config_file(MODEL_PATH))
 
 # Does not affect output bbox coordinates
 cfg.INPUT.MAX_SIZE_TRAIN = 1333
@@ -54,22 +57,12 @@ cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5     # Setting to lower than 0.7 becaus
 cfg.TEST.DETECTIONS_PER_IMAGE = 150
 
 # Find a model from detectron2's model zoo. You can use the https://dl.fbaipublicfiles... url as well
-cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml")
+cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(MODEL_PATH)
 predictor = DefaultPredictor(cfg)
 
-# -------------------------- MODEL SELECTION ----------------------------------
-
-
-# outputs = predictor(im)
-
-# Save predictions
-# v = Visualizer(im[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
-# v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-# cv2.imwrite(f'o2_rpn_{cfg.MODEL.RPN.NMS_THRESH}_roi_{cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST}_detperimg_{cfg.TEST.DETECTIONS_PER_IMAGE}_roiscore_{cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST}.jpg', 
-# 	v.get_image()[:,:,::-1])
-
 # -------------------------- FOLDER CREATION ----------------------------------
-OUTPUT_ROOT = '/mnt/sda2/workspace/self_supervised_outputs'
+# OUTPUT_ROOT = '/mnt/sda2/workspace/self_supervised_outputs'
+OUTPUT_ROOT = args.output_dir
 RESULT_TYPE = 'predictor'
 FOLDER_COUNT = 1
 
@@ -81,13 +74,18 @@ MODEL_OUTPUT_PATH = os.path.join(OUTPUT_ROOT, f'{MODEL}_{FOLDER_COUNT}')
 PREDICTOR_OUTPUT_PATH = os.path.join(MODEL_OUTPUT_PATH, RESULT_TYPE)
 os.makedirs(PREDICTOR_OUTPUT_PATH)
 
+# Save config file
 with open(os.path.join(MODEL_OUTPUT_PATH, 'cfg.txt'), 'w') as f:
 	f.write(cfg.dump())
+
+with open(os.path.join(MODEL_OUTPUT_PATH, 'time.txt'), 'a') as f:
+	f.write(datetime.datetime.now().strftime("%m-%d-%Y_%H:%M:%S")+'\n')
 
 print(f'Model Output path = {MODEL_OUTPUT_PATH}')
 
 # -------------------------- FOLDER CREATION ----------------------------------
-DATASET_ROOT = '/mnt/sda2/workspace/DATASETS/ActiveVision'
+# DATASET_ROOT = '/mnt/sda2/workspace/DATASETS/ActiveVision'
+DATASET_ROOT = args.dataset_root
 SCENES = ['Home_001_1', 'Home_001_2', 'Home_002_1', 'Home_003_1', 
 			'Home_003_2', 'Home_004_1', 'Home_004_2', 'Home_005_1',
             'Home_005_2', 'Home_006_1', 'Home_007_1', 'Home_008_1',
@@ -99,7 +97,7 @@ SCENES = ['Home_001_1', 'Home_001_2', 'Home_002_1', 'Home_003_1',
 for scene in SCENES:
 	image_paths = glob.glob(os.path.join(DATASET_ROOT, scene, 'jpg_rgb', '*.jpg'))
 	print(f'Scene = {scene}, Number of Images = {len(image_paths)}')
-	c = 0
+	
 	for image_path in tqdm(image_paths):
 		
 		image_file = os.path.basename(image_path)
@@ -107,19 +105,27 @@ for scene in SCENES:
 
 		img = cv2.imread(image_path)
 		outputs = predictor(img)
-		print(os.path.join(PREDICTOR_OUTPUT_PATH, output_file))
 
-		print(image_file, len(outputs["instances"].pred_classes))
 		torch.save(outputs, os.path.join(PREDICTOR_OUTPUT_PATH, output_file))
 		del(outputs)
-		c += 1
-		if c == 15:
-			raise Exception('S')
-
-# -------------------------- INFERENCE ----------------------------------
 
 
-	
+
+# im = cv2.imread("input2.jpg")
+
+# Rescale image
+# width = int(im.shape[1] * scale_percent / 100)
+# height = int(im.shape[0] * scale_percent / 100)
+# dim = (width, height)
+# im = cv2.resize(im, dim)
+
+# outputs = predictor(im)
+
+# Save predictions
+# v = Visualizer(im[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
+# v = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+# cv2.imwrite(f'o2_rpn_{cfg.MODEL.RPN.NMS_THRESH}_roi_{cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST}_detperimg_{cfg.TEST.DETECTIONS_PER_IMAGE}_roiscore_{cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST}.jpg', 
+# 	v.get_image()[:,:,::-1])
 
 # # print(outputs["instances"].pred_classes)
 # print(outputs["instances"].pred_boxes)

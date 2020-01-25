@@ -65,12 +65,19 @@ predictor = DefaultPredictor(cfg)
 OUTPUT_ROOT = args.output_dir
 RESULT_TYPE = 'predictor'
 FOLDER_COUNT = 1
+SLURM_SUFFIX = ''
+
+try:
+	SLURM_JOB_ID = str(os.environ["SLURM_JOB_ID"])
+	SLURM_SUFFIX = '_' + SLURM_JOB_ID
+except KeyError:
+	print('Slurm Job Id not avaialable')
 
 folders_in_output_root = sorted([int(i[len(MODEL)+1:]) for i in os.listdir(OUTPUT_ROOT) if i.startswith(MODEL)])
 if len(folders_in_output_root) > 0:
 	FOLDER_COUNT = folders_in_output_root[-1] + 1
 
-MODEL_OUTPUT_PATH = os.path.join(OUTPUT_ROOT, f'{MODEL}_{FOLDER_COUNT}')
+MODEL_OUTPUT_PATH = os.path.join(OUTPUT_ROOT, f'{MODEL}_{FOLDER_COUNT}{SLURM_SUFFIX}')
 PREDICTOR_OUTPUT_PATH = os.path.join(MODEL_OUTPUT_PATH, RESULT_TYPE)
 os.makedirs(PREDICTOR_OUTPUT_PATH)
 
@@ -79,11 +86,11 @@ with open(os.path.join(MODEL_OUTPUT_PATH, 'cfg.txt'), 'w') as f:
 	f.write(cfg.dump())
 
 with open(os.path.join(MODEL_OUTPUT_PATH, 'time.txt'), 'a') as f:
-	f.write(datetime.datetime.now().strftime("%m-%d-%Y_%H:%M:%S")+'\n')
+	f.write("START TIME: " + datetime.datetime.now().strftime("%m-%d-%Y_%H:%M:%S")+'\n')
 
 print(f'Model Output path = {MODEL_OUTPUT_PATH}')
 
-# -------------------------- FOLDER CREATION ----------------------------------
+# -------------------------- DATA PARAMS ----------------------------------
 # DATASET_ROOT = '/mnt/sda2/workspace/DATASETS/ActiveVision'
 DATASET_ROOT = args.dataset_root
 SCENES = ['Home_001_1', 'Home_001_2', 'Home_002_1', 'Home_003_1', 
@@ -105,9 +112,13 @@ for scene in SCENES:
 
 		img = cv2.imread(image_path)
 		outputs = predictor(img)
-
+		# Delete masks because they take too much space
+		outputs["instances"].remove("pred_masks")
 		torch.save(outputs, os.path.join(PREDICTOR_OUTPUT_PATH, output_file))
 		del(outputs)
+
+with open(os.path.join(MODEL_OUTPUT_PATH, 'time.txt'), 'a') as f:
+	f.write("END TIME:   " + datetime.datetime.now().strftime("%m-%d-%Y_%H:%M:%S")+'\n')
 
 
 

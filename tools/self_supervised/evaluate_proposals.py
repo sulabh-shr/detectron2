@@ -62,7 +62,7 @@ class BboxEvaluator:
         proposal_files = [i for i in os.listdir(self.proposals_path) if (i.endswith('.pt'))]
 
         # TODO: Make file selection a param
-        for idx, proposal_file in tqdm(enumerate(proposal_files[:100]), total=len(proposal_files[:100])):
+        for idx, proposal_file in tqdm(enumerate(proposal_files), total=len(proposal_files)):
 
             img_file = proposal_file.split('.')[0] + '.jpg'
 
